@@ -47,14 +47,16 @@ def reset_level(same_level=False):
 
     wind_speed = random.randint(WINDMIN, WINDMAX)
     wind_angle = random.randint(0, 360)
-    mainBall = Ball(350, 400)
     pShots = shots
     shots = 0
+    mainBall = Ball(350, 400)
+    mainBall.wind_speed = wind_speed
+    mainBall.wind_angle = wind_angle
     if not same_level:
         hole = Hole(random.randint(10, 690), random.randint(10, 690))
-        rocks = [Rock(random.randint(10, 690), random.randint(10, 690)) for _ in range(15)]
-        sands = [Sand(random.randint(10, 690), random.randint(10, 690)) for _ in range(10)]
-        crocs = [Croc(random.randint(10, 690), random.randint(10, 690), bgColor) for _ in range(2)]
+        rocks = [Rock(random.randint(10, 690), random.randint(10, 690)) for _ in range(17)]
+        sands = [Sand(random.randint(10, 690), random.randint(10, 690)) for _ in range(12)]
+        crocs = [Croc(random.randint(10, 690), random.randint(10, 690), bgColor) for _ in range(4)]
     else:
         replay_same_level = True
 
@@ -89,10 +91,12 @@ class Ball:
         self.moving = False
         self.dx = 0
         self.dy = 0
+        self.recent_shot = False
         self.being_pushed = False
-
-        self.friction = 0.99  # Friction factor (less than 1, adjust as needed)
-        self.min_speed_to_move = 0.1  # Minimum speed required for the ball to keep moving
+        self.wind_speed = wind_speed
+        self.wind_angle = wind_angle
+        self.friction = 0.97  # Friction factor (less than 1, adjust as needed)
+        self.min_speed_to_move =1  # Minimum speed required for the ball to keep moving
 
 
 
@@ -102,34 +106,43 @@ class Ball:
         
     def move(self):
         if self.moving:
-            # Update position with current speed and direction
-            self.x += self.dx * self.speed
-            self.y += self.dy * self.speed
+            if self.x < 0:
+                self.x = 0
+            if self.x > 700:
+                self.x = 700
+            if self.y < 0:
+                self.y = 0
+            if self.y > 700:
+                self.y = 700
+            # Apply wind effect only if a recent shot was made
+            if self.recent_shot:
+                wind_dx = self.wind_speed * math.cos(math.radians(self.wind_angle))
+                wind_dy = self.wind_speed * math.sin(math.radians(self.wind_angle))
 
+                # Limit wind effect based on the distance to screen edges
+                if 10 < self.x < 690 and 10 < self.y < 690:
+                    self.x += (self.dx * self.speed) + wind_dx
+                    self.y += (self.dy * self.speed) + wind_dy
+                else:
+                    self.x += self.dx * self.speed
+                    self.y += self.dy * self.speed
+            else:
+                self.x += self.dx * self.speed
+                self.y += self.dy * self.speed
 
-            # Check for edge collisions and bounce
-            if self.x <= 10 or self.x >= 690:  # Assuming 700 is the width of the screen
-                self.dx *= -1  # Reverse horizontal direction
-            if self.y <= 10 or self.y >= 690:  # Assuming 700 is the height of the screen
-                self.dy *= -1  # Reverse vertical direction
-
-            # Stop the ball if the speed is very low
-            # Update the movement based on being_pushed
-        if not self.being_pushed:
+            # Apply friction and check for stop
             self.speed *= self.friction
             if self.speed < self.min_speed_to_move:
                 self.speed = 0
                 self.moving = False
-        else:
-            self.being_pushed = False  # Reset the flag for the next frame
-
+                self.recent_shot = False  # Reset the flag as the ball has stopped
 
     def set_target(self, target_x, target_y, power):
         self.target_x = target_x
         self.target_y = target_y
         self.dx = target_x - self.x
         self.dy = target_y - self.y
-
+        self.recent_shot = True
         distance = math.sqrt(self.dx**2 + self.dy**2)
 
         # Set speed based on power
@@ -202,7 +215,7 @@ class Croc:
         self.last_turn_time = time.time()
         self.x = x
         self.y = y
-        self.color = (50,0,10)
+        self.color = (10,50,10)
         self.angle = random.uniform(0, 2 * math.pi)  # Random angle in radians
 
 
@@ -308,14 +321,14 @@ while True:
             if mouse_button_down:
                 duration = pygame.time.get_ticks() - mouse_button_down_time
                 mouse_button_down = False
-                power = min(duration / 200, max_power)
+                power = min(duration / 150, max_power)
                 # Set target with power
                 mainBall.set_target(*event.pos, power)
                 shots += 1
                 current_power = 0  # Reset power after the shot
     if mouse_button_down:
         duration = pygame.time.get_ticks() - mouse_button_down_time
-        current_power = min(duration / 200, max_power)
+        current_power = min(duration / 150, max_power)
 
     # Move the ball and update the display
     display.fill(bgColor)  # Background color
